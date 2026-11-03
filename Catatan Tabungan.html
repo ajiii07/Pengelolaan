@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Catatan Tabungan</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#EEF2F6;--card:#FFFFFF;--ink:#16243A;--muted:#5D6B80;--line:#D9E0E8;
+  --in:#0F766E;--out:#BE3A5B;--accent:#16243A;--accent-ink:#FFFFFF;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E1622;--card:#17233A;--ink:#E7EDF5;--muted:#9AA9BE;--line:#2A3A55;
+  --in:#2DD4BF;--out:#FB7185;--accent:#E7EDF5;--accent-ink:#0E1622;color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#0E1622;--card:#17233A;--ink:#E7EDF5;--muted:#9AA9BE;--line:#2A3A55;
+  --in:#2DD4BF;--out:#FB7185;--accent:#E7EDF5;--accent-ink:#0E1622;color-scheme:dark;}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.5}
+.wrap{max-width:960px;margin:0 auto;padding:28px 18px 48px}
+header{margin-bottom:22px}
+h1{font-size:15px;font-weight:700;color:var(--muted);margin:0 0 4px}
+.saldo{font-size:clamp(38px,9vw,64px);font-weight:800;letter-spacing:-.03em;line-height:1.05;margin:0}
+.sub{display:flex;gap:22px;flex-wrap:wrap;margin-top:10px;font-weight:500}
+.sub span b{font-weight:700}
+.in{color:var(--in)}.out{color:var(--out)}
+.grid{display:grid;grid-template-columns:320px 1fr;gap:16px}
+@media (max-width:760px){.grid{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
+h2{font-size:16px;margin:0 0 14px}
+label{display:block;font-size:13px;font-weight:500;color:var(--muted);margin:12px 0 4px}
+input,select{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 11px}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--in);outline-offset:2px}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.seg input{position:absolute;opacity:0;width:0}
+.seg label{margin:0;text-align:center;padding:9px;border:1px solid var(--line);border-radius:8px;cursor:pointer;font-weight:700;color:var(--ink)}
+.seg input:checked+label.m{background:var(--in);border-color:var(--in);color:#fff}
+.seg input:checked+label.k{background:var(--out);border-color:var(--out);color:#fff}
+.seg input:focus-visible+label{outline:2px solid var(--ink);outline-offset:2px}
+.btn{width:100%;margin-top:16px;font:inherit;font-weight:700;background:var(--accent);color:var(--accent-ink);border:0;border-radius:8px;padding:11px;cursor:pointer}
+.link{background:none;border:0;color:var(--muted);font:inherit;font-size:13px;text-decoration:underline;cursor:pointer;padding:4px 0}
+.chart{position:relative;height:300px}
+.empty{color:var(--muted);text-align:center;padding:26px 0}
+.list{margin-top:16px}
+ul{list-style:none;margin:0;padding:0}
+li{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--line)}
+li:first-child{border-top:0}
+.dot{width:10px;height:10px;border-radius:50%;flex:none}
+.meta{flex:1;min-width:0}
+.meta b{display:block;font-weight:700;overflow-wrap:anywhere}
+.meta small{color:var(--muted)}
+.amt{font-weight:700;white-space:nowrap}
+.del{background:none;border:0;color:var(--muted);cursor:pointer;font-size:18px;line-height:1;padding:6px}
+.del:hover{color:var(--out)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Saldo tabungan</h1>
+    <p class="saldo" id="saldo">Rp0</p>
+    <div class="sub">
+      <span>Total masuk <b class="in" id="tin">Rp0</b></span>
+      <span>Total keluar <b class="out" id="tout">Rp0</b></span>
+    </div>
+  </header>
+
+  <div class="grid">
+    <form class="card" id="form" onsubmit="return false">
+      <h2>Catat transaksi</h2>
+      <div class="seg" role="radiogroup" aria-label="Jenis transaksi">
+        <input type="radio" name="tipe" id="t-m" value="masuk" checked><label class="m" for="t-m">Uang masuk</label>
+        <input type="radio" name="tipe" id="t-k" value="keluar"><label class="k" for="t-k">Uang keluar</label>
+      </div>
+      <label for="jumlah">Jumlah (Rp)</label>
+      <input id="jumlah" type="number" min="1" step="any" inputmode="numeric" placeholder="50000">
+      <label for="ket">Keterangan</label>
+      <input id="ket" type="text" maxlength="60" placeholder="Gaji, makan siang, listrik">
+      <label for="tgl">Tanggal</label>
+      <input id="tgl" type="date">
+      <button class="btn" id="simpan" type="button">Simpan transaksi</button>
+      <p id="err" class="out" style="font-size:13px;margin:8px 0 0" role="alert"></p>
+    </form>
+
+    <section class="card">
+      <h2>Masuk, keluar, dan saldo per bulan</h2>
+      <div class="chart"><canvas id="grafik" aria-label="Grafik uang masuk, uang keluar, dan saldo per bulan" role="img"></canvas></div>
+      <div class="empty" id="kosong" hidden>Belum ada data. Catat transaksi pertama untuk melihat grafik.</div>
+    </section>
+  </div>
+
+  <section class="card list">
+    <h2>Riwayat transaksi</h2>
+    <ul id="daftar"></ul>
+    <div class="empty" id="kosong2">Belum ada transaksi.</div>
+    <button class="link" id="contoh" type="button">Isi dengan data contoh</button>
+    <button class="link" id="hapus" type="button" style="margin-left:14px">Hapus semua data</button>
+  </section>
+</div>
+
+<script>
+(function(){
+  var KEY="tabungan-v1", data=[], chart=null;
+  var rp=new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",maximumFractionDigits:0});
+  var $=function(id){return document.getElementById(id)};
+
+  function load(){try{var s=localStorage.getItem(KEY);data=s?JSON.parse(s):[]}catch(e){data=[]}if(!Array.isArray(data))data=[]}
+  function save(){try{localStorage.setItem(KEY,JSON.stringify(data))}catch(e){}}
+  function hariIni(){var d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+  function css(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim()}
+  function bulanLabel(k){var p=k.split("-");return new Date(+p[0],+p[1]-1,1).toLocaleDateString("id-ID",{month:"short",year:"2-digit"})}
+  function tglLabel(t){var p=t.split("-");return new Date(+p[0],+p[1]-1,+p[2]).toLocaleDateString("id-ID",{day:"numeric",month:"long",year:"numeric"})}
+  function esc(s){var d=document.createElement("div");d.textContent=s;return d.innerHTML}
+
+  function render(){
+    var tin=0,tout=0;
+    data.forEach(function(x){x.tipe==="masuk"?tin+=x.jumlah:tout+=x.jumlah});
+    $("saldo").textContent=rp.format(tin-tout);
+    $("tin").textContent=rp.format(tin);
+    $("tout").textContent=rp.format(tout);
+
+    var sorted=data.slice().sort(function(a,b){return a.tgl<b.tgl?1:a.tgl>b.tgl?-1:b.id-a.id});
+    $("daftar").innerHTML=sorted.map(function(x){
+      var m=x.tipe==="masuk";
+      return '<li><span class="dot" style="background:var(--'+(m?'in':'out')+')"></span>'+
+        '<div class="meta"><b>'+esc(x.ket||(m?"Uang masuk":"Uang keluar"))+'</b><small>'+tglLabel(x.tgl)+'</small></div>'+
+        '<span class="amt '+(m?'in':'out')+'">'+(m?"+":"-")+rp.format(x.jumlah)+'</span>'+
+        '<button class="del" data-id="'+x.id+'" aria-label="Hapus transaksi">&times;</button></li>';
+    }).join("");
+    $("kosong2").hidden=data.length>0;
+    drawChart();
+  }
+
+  function drawChart(){
+    var months={};
+    data.forEach(function(x){var k=x.tgl.slice(0,7);months[k]=months[k]||{m:0,k:0};months[k][x.tipe==="masuk"?"m":"k"]+=x.jumlah});
+    var keys=Object.keys(months).sort();
+    $("kosong").hidden=keys.length>0;
+    document.querySelector(".chart").style.display=keys.length?"block":"none";
+    if(!keys.length){if(chart){chart.destroy();chart=null}return}
+    var run=0,saldo=keys.map(function(k){run+=months[k].m-months[k].k;return run});
+    var cin=css("--in"),cout=css("--out"),ink=css("--ink"),line=css("--line"),muted=css("--muted");
+    var cfg={
+      data:{labels:keys.map(bulanLabel),datasets:[
+        {type:"bar",label:"Masuk",data:keys.map(function(k){return months[k].m}),backgroundColor:cin,borderRadius:4,order:2},
+        {type:"bar",label:"Keluar",data:keys.map(function(k){return months[k].k}),backgroundColor:cout,borderRadius:4,order:2},
+        {type:"line",label:"Saldo",data:saldo,borderColor:ink,backgroundColor:ink,borderWidth:2,tension:.25,pointRadius:3,order:1}
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,animation:{duration:250},
+        interaction:{mode:"index",intersect:false},
+        plugins:{legend:{labels:{color:ink,font:{family:"Plus Jakarta Sans, system-ui, sans-serif"}}},
+          tooltip:{callbacks:{label:function(c){return c.dataset.label+": "+rp.format(c.parsed.y)}}}},
+        scales:{x:{ticks:{color:muted},grid:{display:false}},
+          y:{ticks:{color:muted,callback:function(v){return Math.abs(v)>=1e6?(v/1e6)+" jt":Math.abs(v)>=1e3?(v/1e3)+" rb":v}},grid:{color:line}}}}
+    };
+    if(chart)chart.destroy();
+    chart=new Chart($("grafik"),cfg);
+  }
+
+  function tambah(tipe,jumlah,ket,tgl){data.push({id:Date.now()+Math.random(),tipe:tipe,jumlah:jumlah,ket:ket,tgl:tgl})}
+
+  $("simpan").addEventListener("click",function(){
+    var tipe=document.querySelector('input[name="tipe"]:checked').value;
+    var j=parseFloat($("jumlah").value),tgl=$("tgl").value;
+    if(!(j>0)){$("err").textContent="Isi jumlah lebih dari 0.";$("jumlah").focus();return}
+    if(!tgl){$("err").textContent="Pilih tanggal transaksi.";$("tgl").focus();return}
+    $("err").textContent="";
+    tambah(tipe,j,$("ket").value.trim(),tgl);
+    save();render();
+    $("jumlah").value="";$("ket").value="";$("jumlah").focus();
+  });
+  $("daftar").addEventListener("click",function(e){
+    var b=e.target.closest(".del");if(!b)return;
+    var id=parseFloat(b.getAttribute("data-id"));
+    data=data.filter(function(x){return x.id!==id});save();render();
+  });
+  $("contoh").addEventListener("click",function(){
+    var d=new Date(),ym=function(off){var t=new Date(d.getFullYear(),d.getMonth()-off,1);return t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0")};
+    var s=[[3,"masuk",5000000,"Gaji","01"],[3,"keluar",1800000,"Kebutuhan bulanan","12"],[3,"keluar",600000,"Listrik dan internet","20"],
+      [2,"masuk",5000000,"Gaji","01"],[2,"masuk",750000,"Jual barang bekas","14"],[2,"keluar",2100000,"Kebutuhan bulanan","11"],
+      [1,"masuk",5000000,"Gaji","01"],[1,"keluar",2600000,"Kebutuhan bulanan","10"],[1,"keluar",900000,"Servis motor","22"],
+      [0,"masuk",5000000,"Gaji","01"],[0,"keluar",1500000,"Kebutuhan bulanan","05"]];
+    s.forEach(function(r){var t=ym(r[0])+"-"+r[4];if(t<=hariIni())tambah(r[1],r[2],r[3],t)});
+    save();render();
+  });
+  $("hapus").addEventListener("click",function(){
+    if(data.length&&confirm("Hapus semua transaksi? Tindakan ini tidak bisa dibatalkan.")){data=[];save();render()}
+  });
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change",drawChart);
+
+  $("tgl").value=hariIni();
+  load();render();
+})();
+</script>
+</body>
+</html>
